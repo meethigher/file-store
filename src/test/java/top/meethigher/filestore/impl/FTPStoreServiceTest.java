@@ -20,7 +20,7 @@ public class FTPStoreServiceTest {
             .host("10.0.0.10")
             .port(21)
             .userName("ftpadmin")
-            .password("meethigher")
+            .password("meethigher!@#")
             .path("/test")
             .tempPath("C:/Users/meethigher/Desktop/nihao")
             .build();

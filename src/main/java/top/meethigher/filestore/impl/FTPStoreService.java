@@ -2,6 +2,7 @@ package top.meethigher.filestore.impl;
 
 import javax.annotation.Nullable;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -87,12 +88,24 @@ public class FTPStoreService extends AbstractVfsFileStore {
         }
 
         public FTPStoreService build() {
-            URI uri = URI.create(String.format("ftp://%s:%s@%s:%s%s",
-                    this.userName,
-                    this.password,
-                    this.host,
-                    this.port,
-                    this.path));
+            URI uri = null;
+            try {
+                //解决账号密码中带有特殊字符的问题
+                uri = URI.create(String.format("ftp://%s:%s@%s:%s%s",
+                        URLEncoder.encode(this.userName, "utf-8"),
+                        URLEncoder.encode(this.password, "utf-8"),
+                        this.host,
+                        this.port,
+                        this.path));
+            } catch (Exception e) {
+                e.printStackTrace();
+                uri = URI.create(String.format("ftp://%s:%s@%s:%s%s",
+                        this.userName,
+                        this.password,
+                        this.host,
+                        this.port,
+                        this.path));
+            }
             return new FTPStoreService(uri, this.tempPath);
         }
     }
