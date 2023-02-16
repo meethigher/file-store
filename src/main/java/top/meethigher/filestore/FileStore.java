@@ -1,6 +1,8 @@
 package top.meethigher.filestore;
 
 import java.io.InputStream;
+import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * 文件存储服务
@@ -44,4 +46,11 @@ public interface FileStore {
      * @return true表示删除成功
      */
     boolean delete(String fileName);
+
+
+    /**
+     * @param predicate 条件
+     * @return 列出所有符合条件的文件
+     */
+    List<String> listFiles(Predicate<FileInfo> predicate);
 }

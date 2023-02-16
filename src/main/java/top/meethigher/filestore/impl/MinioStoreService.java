@@ -1,14 +1,22 @@
 package top.meethigher.filestore.impl;
 
 import io.minio.*;
+import io.minio.messages.Item;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import top.meethigher.filestore.FileInfo;
 
 import javax.annotation.Nullable;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.time.temporal.ChronoField;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * minio文件存储服务
@@ -127,6 +135,39 @@ public class MinioStoreService extends AbstractFileStore {
             return false;
         }
         return true;
+    }
+
+
+    @Override
+    public List<String> listFiles(Predicate<FileInfo> predicate) {
+        //以下两行是为了让minio兼容文件的操作
+        String path = getUri().getPath().replace("/", "");
+        path = path + "/";
+
+        ListObjectsArgs args = ListObjectsArgs.builder()
+                .bucket(bucket)
+                .prefix(path)
+                .build();
+        Iterable<Result<Item>> results = minioClient.listObjects(args);
+        List<String> list = new LinkedList<>();
+        for (Result<Item> result : results) {
+            try {
+                Item item = result.get();
+                FileInfo fileInfo = FileInfo.FileInfoBuilder.builder()
+                        .length(item.isDir() ? 0L : item.size())
+                        .name(URLDecoder.decode(item.objectName().replace(path, "").replace("/", ""),"utf-8"))
+                        .lastModified(item.isDir() ? 0L : item.lastModified().getLong(ChronoField.INSTANT_SECONDS) * 1000)
+                        .isFile(!item.isDir())
+                        .build();
+                if (predicate.test(fileInfo)) {
+                    list.add(fileInfo.getName());
+                }
+            } catch (Exception e) {
+                log.error("Minio list one file error: {}", e.getMessage());
+                e.printStackTrace();
+            }
+        }
+        return list;
     }
 
     public static class MinioStoreServiceBuilder {

@@ -5,12 +5,16 @@ import org.apache.commons.vfs2.VFS;
 import org.apache.commons.vfs2.impl.DefaultFileSystemManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import top.meethigher.filestore.FileInfo;
 
 import javax.annotation.Nullable;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * 基于apache VFS的抽象文件存储服务
@@ -20,7 +24,7 @@ import java.net.URI;
  */
 public abstract class AbstractVfsFileStore extends AbstractFileStore {
 
-    private final Logger log = LoggerFactory.getLogger(AbstractVfsFileStore.class);
+    private static final Logger log = LoggerFactory.getLogger(AbstractVfsFileStore.class);
 
 
     /**
@@ -50,12 +54,22 @@ public abstract class AbstractVfsFileStore extends AbstractFileStore {
     }
 
     /**
-     * 转换文件名编码
+     * 文件名编码
      *
      * @param fileName 文件名
      * @return 转换编码后的文件名
      */
-    protected String convertName(String fileName) {
+    protected String encodeName(String fileName) {
+        return fileName;
+    }
+
+    /**
+     * 文件名解码
+     *
+     * @param fileName 文件名
+     * @return 转换解码后的文件名
+     */
+    protected String decodeName(String fileName) {
         return fileName;
     }
 
@@ -66,7 +80,7 @@ public abstract class AbstractVfsFileStore extends AbstractFileStore {
         notNull(fileName, "参数fileName不可为空");
         byte[] bytes = new byte[1024];
         int len;
-        try (OutputStream os = getManager().resolveFile(getFilePath(getUri().toString(), convertName(fileName))).getContent().getOutputStream()) {
+        try (OutputStream os = getManager().resolveFile(getFilePath(getUri().toString(), encodeName(fileName))).getContent().getOutputStream()) {
             while ((len = is.read(bytes)) != -1) {
                 os.write(bytes, 0, len);
             }
@@ -85,7 +99,7 @@ public abstract class AbstractVfsFileStore extends AbstractFileStore {
         String localFilePath = getFilePath(getTempPath(), fileName);
         byte[] bytes = new byte[1024];
         int len;
-        try (InputStream is = getManager().resolveFile(getFilePath(getUri().toString(), convertName(fileName))).getContent().getInputStream();
+        try (InputStream is = getManager().resolveFile(getFilePath(getUri().toString(), encodeName(fileName))).getContent().getInputStream();
              OutputStream os = new FileOutputStream(localFilePath)) {
             while ((len = is.read(bytes)) != -1) {
                 os.write(bytes, 0, len);
@@ -105,7 +119,7 @@ public abstract class AbstractVfsFileStore extends AbstractFileStore {
         notNull(fileName, "参数fileName不可为空");
         boolean delete;
         try {
-            FileObject fileObject = getManager().resolveFile(getFilePath(getUri().toString(), convertName(fileName)));
+            FileObject fileObject = getManager().resolveFile(getFilePath(getUri().toString(), encodeName(fileName)));
             delete = fileObject.delete();
         } catch (Exception e) {
             log.error("VFS delete error:{}", e.getMessage());
@@ -118,11 +132,36 @@ public abstract class AbstractVfsFileStore extends AbstractFileStore {
     public boolean exist(String fileName) {
         notNull(fileName, "参数fileName不可为空");
         try {
-            FileObject fileObject = getManager().resolveFile(getFilePath(getUri().toString(), convertName(fileName)));
+            FileObject fileObject = getManager().resolveFile(getFilePath(getUri().toString(), encodeName(fileName)));
             return fileObject.exists();
         } catch (Exception e) {
             log.error("VFS exist error:{}", e.getMessage());
         }
         return false;
+    }
+
+    @Override
+    public List<String> listFiles(Predicate<FileInfo> predicate) {
+        List<String> list = new LinkedList<>();
+        try {
+            //fileObject本身迭代，可以拿到所有文件，包含子目录。如果只用getChildren方法，则取当前目录下的
+            FileObject fileObject = getManager().resolveFile(getFilePath(getUri().toString(), ""));
+            FileObject[] children = fileObject.getChildren();
+            for (FileObject fo : children) {
+                FileInfo fileInfo = FileInfo.FileInfoBuilder.builder()
+                        .length(fo.isFile() ? fo.getContent().getSize() : 0L)
+                        .isFile(fo.isFile())
+                        .name(decodeName(fo.getName().getBaseName()))
+                        .lastModified(fo.isFile() ? fo.getContent().getLastModifiedTime() : 0L)
+                        .build();
+                if (predicate.test(fileInfo)) {
+                    list.add(fileInfo.getName());
+                }
+            }
+        } catch (Exception e) {
+            log.error("VFS list one file error:{}", e.getMessage());
+            e.printStackTrace();
+        }
+        return list;
     }
 }

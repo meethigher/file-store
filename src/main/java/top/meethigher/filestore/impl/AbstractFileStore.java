@@ -16,7 +16,7 @@ import java.net.URI;
  */
 public abstract class AbstractFileStore implements FileStore {
 
-    private final Logger log = LoggerFactory.getLogger(AbstractFileStore.class);
+    private static final Logger log = LoggerFactory.getLogger(AbstractFileStore.class);
 
     /**
      * 默认的存储文件夹

@@ -123,9 +123,19 @@ public class FTPStoreService extends AbstractVfsFileStore {
      * @return
      */
     @Override
-    protected String convertName(String fileName) {
+    protected String encodeName(String fileName) {
         try {
             return new String(fileName.getBytes(StandardCharsets.UTF_8), StandardCharsets.ISO_8859_1);
+        } catch (Exception e) {
+            return fileName;
+        }
+    }
+
+
+    @Override
+    protected String decodeName(String fileName) {
+        try {
+            return new String(fileName.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
         } catch (Exception e) {
             return fileName;
         }

@@ -2,12 +2,16 @@ package top.meethigher.filestore.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import top.meethigher.filestore.FileInfo;
 import top.meethigher.filestore.FileStore;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * 本地文件存储服务
@@ -81,5 +85,27 @@ public class LocalStoreService implements FileStore {
             log.info("文件 {} 不存在，删除失败", fileName);
             return false;
         }
+    }
+
+    @Override
+    public List<String> listFiles(Predicate<FileInfo> predicate) {
+        File dir = new File(rootPath);
+        File[] fileArr = dir.listFiles();
+        if (fileArr == null || fileArr.length <= 0) {
+            return null;
+        }
+        List<String> list = new LinkedList<>();
+        for (File file : fileArr) {
+            FileInfo fileInfo = FileInfo.FileInfoBuilder.builder()
+                    .isFile(file.isFile())
+                    .lastModified(file.isFile() ? file.lastModified() : 0L)
+                    .name(file.getName())
+                    .length(file.isFile() ? file.length() : 0L)
+                    .build();
+            if (predicate.test(fileInfo)) {
+                list.add(file.getName());
+            }
+        }
+        return list;
     }
 }
